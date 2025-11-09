@@ -35,8 +35,8 @@ class AddCoursePanel(wx.Panel):
         fg = wx.FlexGridSizer(0, 2, 10, 10)
         fg.AddGrowableCol(1, 1)
 
-        fg.Add(wx.StaticText(self, label='Course ID:'), 0, wx.ALIGN_CENTER_VERTICAL)
-        self.txt_course_id = wx.TextCtrl(self)
+        fg.Add(wx.StaticText(self, label='Course ID (Auto):'), 0, wx.ALIGN_CENTER_VERTICAL)
+        self.txt_course_id = wx.TextCtrl(self, style=wx.TE_READONLY)
         fg.Add(self.txt_course_id, 1, wx.EXPAND)
 
         fg.Add(wx.StaticText(self, label='Full Name:'), 0, wx.ALIGN_CENTER_VERTICAL)
@@ -47,35 +47,7 @@ class AddCoursePanel(wx.Panel):
         self.txt_short_name = wx.TextCtrl(self)
         fg.Add(self.txt_short_name, 1, wx.EXPAND)
 
-        fg.Add(wx.StaticText(self, label='Summary:'), 0, wx.ALIGN_CENTER_VERTICAL)
-        self.txt_summary = wx.TextCtrl(self, style=wx.TE_MULTILINE)
-        fg.Add(self.txt_summary, 1, wx.EXPAND)
-
-        fg.Add(wx.StaticText(self, label='Category ID:'), 0, wx.ALIGN_CENTER_VERTICAL)
-        self.txt_cat_id = wx.TextCtrl(self)
-        fg.Add(self.txt_cat_id, 1, wx.EXPAND)
-
-        fg.Add(wx.StaticText(self, label='Category Name:'), 0, wx.ALIGN_CENTER_VERTICAL)
-        self.txt_cat_name = wx.TextCtrl(self)
-        fg.Add(self.txt_cat_name, 1, wx.EXPAND)
-
-        fg.Add(wx.StaticText(self, label='Category Path:'), 0, wx.ALIGN_CENTER_VERTICAL)
-        self.txt_cat_path = wx.TextCtrl(self)
-        fg.Add(self.txt_cat_path, 1, wx.EXPAND)
-
-        fg.Add(wx.StaticText(self, label='Category Path Names:'), 0, wx.ALIGN_CENTER_VERTICAL)
-        self.txt_cat_path_names = wx.TextCtrl(self)
-        fg.Add(self.txt_cat_path_names, 1, wx.EXPAND)
-
-        fg.Add(wx.StaticText(self, label='Top Category:'), 0, wx.ALIGN_CENTER_VERTICAL)
-        self.txt_top_cat = wx.TextCtrl(self)
-        fg.Add(self.txt_top_cat, 1, wx.EXPAND)
-
-        fg.Add(wx.StaticText(self, label='Level ID:'), 0, wx.ALIGN_CENTER_VERTICAL)
-        self.txt_level_id = wx.TextCtrl(self)
-        fg.Add(self.txt_level_id, 1, wx.EXPAND)
-
-        fg.Add(wx.StaticText(self, label='Level Name:'), 0, wx.ALIGN_CENTER_VERTICAL)
+        fg.Add(wx.StaticText(self, label='Level:'), 0, wx.ALIGN_CENTER_VERTICAL)
         self.txt_level_name = wx.TextCtrl(self)
         fg.Add(self.txt_level_name, 1, wx.EXPAND)
 
@@ -102,46 +74,60 @@ class AddCoursePanel(wx.Panel):
         outer.Add(btn_sizer, 0, wx.ALIGN_RIGHT | wx.RIGHT | wx.BOTTOM, 12)
 
         self.SetSizer(outer)
+        self.set_next_id()
+
 
     def on_add(self, evt):
         try:
             course_id = int(self.txt_course_id.GetValue())
-            full_name = self.txt_full_name.GetValue()
-            short_name = self.txt_short_name.GetValue()
-            summary = self.txt_summary.GetValue()
-            cat_id = int(self.txt_cat_id.GetValue())
-            cat_name = self.txt_cat_name.GetValue()
-            cat_path = self.txt_cat_path.GetValue()
-            cat_path_names = self.txt_cat_path_names.GetValue()
-            top_cat = self.txt_top_cat.GetValue()
-            level_id = self.txt_level_id.GetValue()
-            level_name = self.txt_level_name.GetValue()
-            cefr = self.txt_cefr.GetValue()
-            series = self.txt_series.GetValue()
+            full_name = self.txt_full_name.GetValue().strip()
+            if not full_name:
+                wx.MessageBox('Full Name is required.', 'Error', wx.OK | wx.ICON_ERROR)
+                return
+            short_name = self.txt_short_name.GetValue().strip()
+            level_name = self.txt_level_name.GetValue().strip()
+            cefr = self.txt_cefr.GetValue().strip()
+            series = self.txt_series.GetValue().strip()
+
+            # 其他欄位給預設值
+            summary = ""
+            cat_id = 0
+            cat_name = ""
+            cat_path = ""
+            cat_path_names = ""
+            top_cat = ""
+            level_id = ""
 
             db.add_course(course_id, full_name, short_name, summary, cat_id, cat_name,
                          cat_path, cat_path_names, top_cat, level_id, level_name, cefr, series)
             wx.MessageBox('Course added successfully!', 'Success', wx.OK | wx.ICON_INFORMATION)
             self.on_clear(evt)
+            self.set_next_id()
         except ValueError as e:
             wx.MessageBox(str(e), 'Error', wx.OK | wx.ICON_ERROR)
         except Exception as e:
             wx.MessageBox(f'Error: {str(e)}', 'Error', wx.OK | wx.ICON_ERROR)
 
     def on_clear(self, evt):
-        self.txt_course_id.SetValue('')
         self.txt_full_name.SetValue('')
         self.txt_short_name.SetValue('')
-        self.txt_summary.SetValue('')
-        self.txt_cat_id.SetValue('')
-        self.txt_cat_name.SetValue('')
-        self.txt_cat_path.SetValue('')
-        self.txt_cat_path_names.SetValue('')
-        self.txt_top_cat.SetValue('')
-        self.txt_level_id.SetValue('')
         self.txt_level_name.SetValue('')
         self.txt_cefr.SetValue('')
         self.txt_series.SetValue('')
+        self.set_next_id()
+
+    def set_next_id(self):
+        # 自動取得最大ID+1
+        try:
+            all_courses = db.get_all_courses()
+            if all_courses:
+                max_id = max(c['_id'] for c in all_courses if isinstance(c['_id'], int))
+                next_id = max_id + 1
+            else:
+                next_id = 1
+            self.txt_course_id.SetValue(str(next_id))
+        except Exception:
+            self.txt_course_id.SetValue('1')
 
 class ManageCoursesPanel(wx.Panel):
     def __init__(self, parent):
